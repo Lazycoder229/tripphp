@@ -1,83 +1,204 @@
-- name: Prepare dev branch
-  run: |
-    set -e
+name: Publish End-User Dev Branch
 
-    rm -rf /tmp/trip-dev
-    mkdir -p /tmp/trip-dev
+on:
+  push:
+    branches:
+      - main
 
-    # ==========================================
-    # Application structure
-    # Create folders only - do not copy app files
-    # ==========================================
+permissions:
+  contents: write
 
-    mkdir -p /tmp/trip-dev/app/Controllers
-    mkdir -p /tmp/trip-dev/app/Middleware
-    mkdir -p /tmp/trip-dev/app/Models
-    mkdir -p /tmp/trip-dev/app/Views/Layouts
-    mkdir -p /tmp/trip-dev/app/Views/Errors
+jobs:
+  publish:
+    name: Update dev distribution
+    runs-on: ubuntu-latest
 
-    # Keep empty folders in Git
-    touch /tmp/trip-dev/app/Controllers/.gitkeep
-    touch /tmp/trip-dev/app/Middleware/.gitkeep
-    touch /tmp/trip-dev/app/Models/.gitkeep
-    touch /tmp/trip-dev/app/Views/.gitkeep
-    touch /tmp/trip-dev/app/Views/Layouts/.gitkeep
-    touch /tmp/trip-dev/app/Views/Errors/.gitkeep
+    steps:
+      # ==========================================
+      # Checkout MAIN
+      # ==========================================
 
-    # ==========================================
-    # Framework source
-    # ==========================================
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
-    cp -R src /tmp/trip-dev/
+      # ==========================================
+      # Prepare clean distribution
+      # ==========================================
 
-    # ==========================================
-    # Public and runtime files
-    # ==========================================
+      - name: Prepare dev distribution
+        run: |
+          set -e
 
-    cp -R public /tmp/trip-dev/
-    cp -R storage /tmp/trip-dev/
+          rm -rf /tmp/trip-dev
+          mkdir -p /tmp/trip-dev
 
-    # ==========================================
-    # Framework configuration
-    # ==========================================
+          # ==========================================
+          # Application structure
+          # Keep folders, but DO NOT copy app files
+          # ==========================================
 
-    cp -R config /tmp/trip-dev/
-    cp -R database /tmp/trip-dev/
+          mkdir -p /tmp/trip-dev/app/Controllers
+          mkdir -p /tmp/trip-dev/app/Middleware
+          mkdir -p /tmp/trip-dev/app/Models
+          mkdir -p /tmp/trip-dev/app/Views
+          mkdir -p /tmp/trip-dev/app/Views/Layouts
+          mkdir -p /tmp/trip-dev/app/Views/Errors
 
-    cp .env.example /tmp/trip-dev/.env.example
-    cp .htaccess /tmp/trip-dev/.htaccess
-    cp .gitignore /tmp/trip-dev/.gitignore
+          # Keep folders in Git
+          touch /tmp/trip-dev/app/Controllers/.gitkeep
+          touch /tmp/trip-dev/app/Middleware/.gitkeep
+          touch /tmp/trip-dev/app/Models/.gitkeep
+          touch /tmp/trip-dev/app/Views/.gitkeep
+          touch /tmp/trip-dev/app/Views/Layouts/.gitkeep
+          touch /tmp/trip-dev/app/Views/Errors/.gitkeep
 
-    # ==========================================
-    # Composer
-    # ==========================================
+          # ==========================================
+          # Framework source
+          # ==========================================
 
-    cp composer.json /tmp/trip-dev/
-    cp composer.lock /tmp/trip-dev/
+          cp -R src /tmp/trip-dev/
 
-    # ==========================================
-    # CLI
-    # ==========================================
+          # ==========================================
+          # Public and runtime files
+          # ==========================================
 
-    cp trip /tmp/trip-dev/
+          cp -R public /tmp/trip-dev/
+          cp -R storage /tmp/trip-dev/
 
-    # ==========================================
-    # Remove uploaded files
-    # ==========================================
+          # ==========================================
+          # Configuration
+          # ==========================================
 
-    if [ -d "/tmp/trip-dev/storage/app/uploads" ]; then
-      find /tmp/trip-dev/storage/app/uploads \
-        -type f ! -name '.gitkeep' -delete
-    fi
+          cp -R config /tmp/trip-dev/
+          cp -R database /tmp/trip-dev/
 
-    if [ -d "/tmp/trip-dev/public/uploads" ]; then
-      find /tmp/trip-dev/public/uploads \
-        -type f ! -name '.gitkeep' -delete
-    fi
+          cp .env.example /tmp/trip-dev/.env.example
+          cp .htaccess /tmp/trip-dev/.htaccess
+          cp .gitignore /tmp/trip-dev/.gitignore
 
-    # Make sure upload directories exist
-    mkdir -p /tmp/trip-dev/storage/app/uploads
-    mkdir -p /tmp/trip-dev/public/uploads
+          # ==========================================
+          # Composer
+          # These come directly from MAIN
+          # ==========================================
 
-    touch /tmp/trip-dev/storage/app/uploads/.gitkeep
-    touch /tmp/trip-dev/public/uploads/.gitkeep
+          cp composer.json /tmp/trip-dev/composer.json
+          cp composer.lock /tmp/trip-dev/composer.lock
+
+          # ==========================================
+          # CLI
+          # ==========================================
+
+          cp trip /tmp/trip-dev/
+
+          # ==========================================
+          # Remove uploaded files
+          # ==========================================
+
+          if [ -d "/tmp/trip-dev/storage/app/uploads" ]; then
+            find /tmp/trip-dev/storage/app/uploads \
+              -type f ! -name '.gitkeep' -delete
+          fi
+
+          if [ -d "/tmp/trip-dev/public/uploads" ]; then
+            find /tmp/trip-dev/public/uploads \
+              -type f ! -name '.gitkeep' -delete
+          fi
+
+          # Make sure upload directories exist
+          mkdir -p /tmp/trip-dev/storage/app/uploads
+          mkdir -p /tmp/trip-dev/public/uploads
+
+          touch /tmp/trip-dev/storage/app/uploads/.gitkeep
+          touch /tmp/trip-dev/public/uploads/.gitkeep
+
+          # ==========================================
+          # Show Composer configuration
+          # ==========================================
+
+          echo "=========================================="
+          echo "Distribution composer.json"
+          echo "=========================================="
+
+          cat /tmp/trip-dev/composer.json
+
+      # ==========================================
+      # Validate the DISTRIBUTION, not old dev
+      # ==========================================
+
+      - name: Validate dev distribution
+        run: |
+          set -e
+
+          composer validate --strict \
+            --working-dir=/tmp/trip-dev
+
+      # ==========================================
+      # Switch to DEV
+      # ==========================================
+
+      - name: Switch to dev branch
+        run: |
+          set -e
+
+          git fetch origin dev
+          git checkout dev
+
+          echo "Current branch:"
+          git branch --show-current
+
+      # ==========================================
+      # Replace DEV contents
+      # ==========================================
+
+      - name: Replace dev contents
+        run: |
+          set -e
+
+          echo "Removing old dev contents..."
+
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name '.git' \
+            -exec rm -rf {} +
+
+          echo "Copying clean distribution..."
+
+          cp -R /tmp/trip-dev/. .
+
+          echo "=========================================="
+          echo "Final dev structure"
+          echo "=========================================="
+
+          find app -maxdepth 3 -print
+
+      # ==========================================
+      # Commit
+      # ==========================================
+
+      - name: Commit distribution
+        run: |
+          set -e
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+            exit 0
+          fi
+
+          git commit -m "Sync dev with main"
+
+      # ==========================================
+      # Push DEV
+      # ==========================================
+
+      - name: Push dev branch
+        run: |
+          set -e
+
+          git push origin dev
