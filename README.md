@@ -95,7 +95,7 @@ The framework currently declares PHP `^8.4` as its runtime requirement.
 ## Installation
 
 ```bash
-composer require trip/app <app-name>
+composer create-project trip/app <app-name>
 ```
 
 Enter the project directory:
