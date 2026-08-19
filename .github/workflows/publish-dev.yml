@@ -68,29 +68,22 @@ jobs:
 
           touch /tmp/trip-dev/app/Models/.gitkeep
 
-          # ==========================================
-          # Views
-          # Keep default home.php
-          # ==========================================
-
-          cp app/Views/home.php \
-            /tmp/trip-dev/app/Views/home.php
-
+         
           # ==========================================
           # Layouts
           # Keep ALL layout files
           # ==========================================
 
-          cp -R app/Views/Layouts/. \
-            /tmp/trip-dev/app/Views/Layouts/
+          cp -R app/views/Layouts/. \
+            /tmp/trip-dev/app/views/Layouts/
 
           # ==========================================
           # Errors
           # Keep ALL error view files
           # ==========================================
 
-          cp -R app/Views/Errors/. \
-            /tmp/trip-dev/app/Views/Errors/
+          cp -R app/views/Errors/. \
+            /tmp/trip-dev/app/views/Errors/
 
           # ==========================================
           # Framework source
