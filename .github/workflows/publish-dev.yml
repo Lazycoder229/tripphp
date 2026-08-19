@@ -74,16 +74,16 @@ jobs:
           # Keep ALL layout files
           # ==========================================
 
-          cp -R app/views/Layouts/. \
-            /tmp/trip-dev/app/views/Layouts/
+          cp -R app/views/layouts/. \
+            /tmp/trip-dev/app/views/layouts/
 
           # ==========================================
           # Errors
           # Keep ALL error view files
           # ==========================================
 
-          cp -R app/views/Errors/. \
-            /tmp/trip-dev/app/views/Errors/
+          cp -R app/views/errors/. \
+            /tmp/trip-dev/app/views/errors/
 
           # ==========================================
           # Framework source
