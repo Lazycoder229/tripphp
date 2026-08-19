@@ -12,12 +12,8 @@
     },
     "autoload": {
         "psr-4": {
-            "TripCore\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Tests\\": "tests/"
+            "Framework\\": "src/",
+            "App\\": "app/"
         }
     },
     "scripts": {
