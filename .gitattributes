@@ -1,0 +1,37 @@
+# ==========================================
+# TRIP Framework Distribution
+# ==========================================
+
+# Keep framework source
+src/
+
+# Keep Composer package metadata
+composer.json
+composer.lock
+
+
+# ==========================================
+# Exclude application/development files
+# ==========================================
+
+app/               export-ignore
+config/            export-ignore
+database/          export-ignore
+public/            export-ignore
+storage/           export-ignore
+
+# Deployment
+deployment/        export-ignore
+deploy.sh          export-ignore
+DEPLOYMENT.md      export-ignore
+Dockerfile         export-ignore
+docker-compose.yml export-ignore
+
+# CI / development
+.github/           export-ignore
+.phpunit.cache/    export-ignore
+
+# Repository documentation / helper files
+how-it-creates     export-ignore
+tests/            export-ignore
+vendor/            export-ignore
