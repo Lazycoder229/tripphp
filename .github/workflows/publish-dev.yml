@@ -21,13 +21,47 @@ jobs:
 
       - name: Prepare dev branch
         run: |
+          set -e
+
+          rm -rf /tmp/trip-dev
           mkdir -p /tmp/trip-dev
 
+          # Application
           cp -R app /tmp/trip-dev/
           cp -R src /tmp/trip-dev/
+
+          # Public and runtime files
+          cp -R public /tmp/trip-dev/
+          cp -R storage /tmp/trip-dev/
+
+          # Framework configuration
+          cp -R config /tmp/trip-dev/
+          cp -R database /tmp/trip-dev/
+
+          # Composer
           cp composer.json /tmp/trip-dev/
           cp composer.lock /tmp/trip-dev/
+
+          # CLI
           cp trip /tmp/trip-dev/
+
+          # Remove uploaded files but keep .gitkeep
+          if [ -d "/tmp/trip-dev/storage/app/uploads" ]; then
+            find /tmp/trip-dev/storage/app/uploads \
+              -type f ! -name '.gitkeep' -delete
+          fi
+
+          if [ -d "/tmp/trip-dev/public/uploads" ]; then
+            find /tmp/trip-dev/public/uploads \
+              -type f ! -name '.gitkeep' -delete
+          fi
+
+          # Make sure upload directories exist
+          mkdir -p /tmp/trip-dev/storage/app/uploads
+          mkdir -p /tmp/trip-dev/public/uploads
+
+          touch /tmp/trip-dev/storage/app/uploads/.gitkeep
+          touch /tmp/trip-dev/public/uploads/.gitkeep
 
       - name: Switch to dev branch
         run: |
@@ -36,6 +70,8 @@ jobs:
 
       - name: Replace dev contents
         run: |
+          set -e
+
           find . -mindepth 1 -maxdepth 1 \
             ! -name '.git' \
             -exec rm -rf {} +
