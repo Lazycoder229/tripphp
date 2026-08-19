@@ -17,6 +17,7 @@ class ComposerStaticInitd751713988987e9331980363e24189ce
     public static $prefixLengthsPsr4 = array (
         'T' =>
         array (
+            'TripCore\\' => 9,
             'Tests\\' => 6,
         ),
         'S' =>
@@ -34,22 +35,18 @@ class ComposerStaticInitd751713988987e9331980363e24189ce
         array (
             'GrahamCampbell\\ResultType\\' => 26,
         ),
-        'F' =>
-        array (
-            'Framework\\' => 10,
-        ),
         'D' =>
         array (
             'Dotenv\\' => 7,
             'DeepCopy\\' => 9,
         ),
-        'A' =>
-        array (
-            'App\\' => 4,
-        ),
     );
 
     public static $prefixDirsPsr4 = array (
+        'TripCore\\' =>
+        array (
+            0 => __DIR__ . '/../..' . '/src',
+        ),
         'Tests\\' =>
         array (
             0 => __DIR__ . '/../..' . '/tests',
@@ -78,10 +75,6 @@ class ComposerStaticInitd751713988987e9331980363e24189ce
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
         ),
-        'Framework\\' =>
-        array (
-            0 => __DIR__ . '/../..' . '/src',
-        ),
         'Dotenv\\' =>
         array (
             0 => __DIR__ . '/..' . '/vlucas/phpdotenv/src',
@@ -89,10 +82,6 @@ class ComposerStaticInitd751713988987e9331980363e24189ce
         'DeepCopy\\' =>
         array (
             0 => __DIR__ . '/..' . '/myclabs/deep-copy/src/DeepCopy',
-        ),
-        'App\\' =>
-        array (
-            0 => __DIR__ . '/../..' . '/app',
         ),
     );
 
