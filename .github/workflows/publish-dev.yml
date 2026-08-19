@@ -1,101 +1,83 @@
-name: Publish End-User Dev Branch
+- name: Prepare dev branch
+  run: |
+    set -e
 
-on:
-  push:
-    branches:
-      - main
+    rm -rf /tmp/trip-dev
+    mkdir -p /tmp/trip-dev
 
-permissions:
-  contents: write
+    # ==========================================
+    # Application structure
+    # Create folders only - do not copy app files
+    # ==========================================
 
-jobs:
-  publish:
-    name: Update dev distribution
-    runs-on: ubuntu-latest
+    mkdir -p /tmp/trip-dev/app/Controllers
+    mkdir -p /tmp/trip-dev/app/Middleware
+    mkdir -p /tmp/trip-dev/app/Models
+    mkdir -p /tmp/trip-dev/app/Views/Layouts
+    mkdir -p /tmp/trip-dev/app/Views/Errors
 
-    steps:
-      - name: Checkout main
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    # Keep empty folders in Git
+    touch /tmp/trip-dev/app/Controllers/.gitkeep
+    touch /tmp/trip-dev/app/Middleware/.gitkeep
+    touch /tmp/trip-dev/app/Models/.gitkeep
+    touch /tmp/trip-dev/app/Views/.gitkeep
+    touch /tmp/trip-dev/app/Views/Layouts/.gitkeep
+    touch /tmp/trip-dev/app/Views/Errors/.gitkeep
 
-      - name: Prepare dev branch
-        run: |
-          set -e
+    # ==========================================
+    # Framework source
+    # ==========================================
 
-          rm -rf /tmp/trip-dev
-          mkdir -p /tmp/trip-dev
+    cp -R src /tmp/trip-dev/
 
-          # Application
-          cp -R app /tmp/trip-dev/
-          cp -R src /tmp/trip-dev/
+    # ==========================================
+    # Public and runtime files
+    # ==========================================
 
-          # Public and runtime files
-          cp -R public /tmp/trip-dev/
-          cp -R storage /tmp/trip-dev/
+    cp -R public /tmp/trip-dev/
+    cp -R storage /tmp/trip-dev/
 
-          # Framework configuration
-          cp -R config /tmp/trip-dev/
-          cp -R database /tmp/trip-dev/
+    # ==========================================
+    # Framework configuration
+    # ==========================================
 
-          cp -R .env.example /tmp/trip-dev/.env.example
-          cp -R .htaccess /tmp/trip-dev/.htaccess
-          cp -R .gitignore /tmp/trip-dev/.gitignore 
+    cp -R config /tmp/trip-dev/
+    cp -R database /tmp/trip-dev/
 
-          # Composer
-          cp composer.json /tmp/trip-dev/
-          cp composer.lock /tmp/trip-dev/
+    cp .env.example /tmp/trip-dev/.env.example
+    cp .htaccess /tmp/trip-dev/.htaccess
+    cp .gitignore /tmp/trip-dev/.gitignore
 
-          # CLI
-          cp trip /tmp/trip-dev/
+    # ==========================================
+    # Composer
+    # ==========================================
 
-          # Remove uploaded files but keep .gitkeep
-          if [ -d "/tmp/trip-dev/storage/app/uploads" ]; then
-            find /tmp/trip-dev/storage/app/uploads \
-              -type f ! -name '.gitkeep' -delete
-          fi
+    cp composer.json /tmp/trip-dev/
+    cp composer.lock /tmp/trip-dev/
 
-          if [ -d "/tmp/trip-dev/public/uploads" ]; then
-            find /tmp/trip-dev/public/uploads \
-              -type f ! -name '.gitkeep' -delete
-          fi
+    # ==========================================
+    # CLI
+    # ==========================================
 
-          # Make sure upload directories exist
-          mkdir -p /tmp/trip-dev/storage/app/uploads
-          mkdir -p /tmp/trip-dev/public/uploads
+    cp trip /tmp/trip-dev/
 
-          touch /tmp/trip-dev/storage/app/uploads/.gitkeep
-          touch /tmp/trip-dev/public/uploads/.gitkeep
+    # ==========================================
+    # Remove uploaded files
+    # ==========================================
 
-      - name: Switch to dev branch
-        run: |
-          git fetch origin dev
-          git checkout dev
+    if [ -d "/tmp/trip-dev/storage/app/uploads" ]; then
+      find /tmp/trip-dev/storage/app/uploads \
+        -type f ! -name '.gitkeep' -delete
+    fi
 
-      - name: Replace dev contents
-        run: |
-          set -e
+    if [ -d "/tmp/trip-dev/public/uploads" ]; then
+      find /tmp/trip-dev/public/uploads \
+        -type f ! -name '.gitkeep' -delete
+    fi
 
-          find . -mindepth 1 -maxdepth 1 \
-            ! -name '.git' \
-            -exec rm -rf {} +
+    # Make sure upload directories exist
+    mkdir -p /tmp/trip-dev/storage/app/uploads
+    mkdir -p /tmp/trip-dev/public/uploads
 
-          cp -R /tmp/trip-dev/. .
-
-      - name: Commit distribution
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add -A
-
-          if git diff --cached --quiet; then
-            echo "No changes to publish."
-            exit 0
-          fi
-
-          git commit -m "Sync dev with main"
-
-      - name: Push dev branch
-        run: |
-          git push origin dev
+    touch /tmp/trip-dev/storage/app/uploads/.gitkeep
+    touch /tmp/trip-dev/public/uploads/.gitkeep
