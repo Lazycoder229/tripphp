@@ -38,6 +38,10 @@ jobs:
           cp -R config /tmp/trip-dev/
           cp -R database /tmp/trip-dev/
 
+          cp -R .env.example /tmp/trip-dev/.env.example
+          cp -R .htaccess /tmp/trip-dev/.htaccess
+          cp -R .gitignore /tmp/trip-dev/.gitignore 
+
           # Composer
           cp composer.json /tmp/trip-dev/
           cp composer.lock /tmp/trip-dev/
