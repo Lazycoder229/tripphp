@@ -39,7 +39,7 @@ jobs:
           # Application structure
           # ==========================================
 
-          mkdir -p /tmp/trip-dev/app/Controllers
+          mkdir -p /tmp/trip-dev/app/Controller
           mkdir -p /tmp/trip-dev/app/Middleware
           mkdir -p /tmp/trip-dev/app/Models
           mkdir -p /tmp/trip-dev/app/Views
@@ -51,8 +51,8 @@ jobs:
           # Keep ONLY the default HomeController
           # ==========================================
 
-          cp app/Controllers/HomeController.php \
-            /tmp/trip-dev/app/Controllers/HomeController.php
+          cp app/Controller/HomeController.php \
+            /tmp/trip-dev/app/Controller/HomeController.php
 
           # ==========================================
           # Middleware
