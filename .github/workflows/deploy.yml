@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Only deploy if the CI workflow that triggered this actually passed —
+    # a failing/cancelled CI run must never reach production.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USERNAME }}
+          key: ${{ secrets.HOSTINGER_SSH_KEY }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          script: |
+            set -e
+            cd ${{ secrets.HOSTINGER_DEPLOY_PATH }}
+
+            # 1. Pull the exact commit that just passed CI
+            git fetch origin main
+            git reset --hard origin/main
+
+            # 2. Install production dependencies only (no phpunit etc.)
+            composer install --no-dev --optimize-autoloader --no-interaction
+
+            # 3. Drop any stale route/config cache from the previous deploy,
+            #    then recompile fresh — this is the exact bug we hit earlier,
+            #    now guaranteed to never ship silently.
+            php trip route:clear
+            php trip optimize
+
+            # 4. Run any new migrations
+            php trip migrate
+
+            # 5. Re-assert storage permissions (git checkouts don't preserve them)
+            chmod -R 775 storage app/views

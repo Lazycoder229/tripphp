@@ -27,7 +27,7 @@ use Framework\Routing\Attribute\Route;
  * PUT    /users/{id}  update a user
  * DELETE /users/{id}  delete a user
  */
-#[Route('/users')]
+#[Route('/')]
 class UserController
 {
     public function __construct(private readonly UserService $userService)
@@ -37,7 +37,7 @@ class UserController
     #[Get('/')]
     public function index(Request $request): Response
     {
-        return Response::json($this->userService->list());
+        return Response::json('Hello World!');
     }
 
     #[Get('/{id}')]

@@ -26,6 +26,7 @@ use Framework\Session\CacheInterface;
 use Framework\Session\FileCache;
 use Framework\Log\LoggerInterface;
 use Framework\Log\FileLogger;
+use Framework\Storage\FileStorage;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use Exception;
@@ -351,6 +352,29 @@ final class Application
                 directory: rtrim($basePath, '/') . '/storage/cache',
                 defaultTtl: (int) Config::get('cache.ttl', 3600),
             );
+        });
+
+        // 4.4.1 Bind FileStorage: two named instances so a controller/service can
+        //     ask for whichever it needs — 'storage.private' (storage/app/uploads,
+        //     outside the document root, never web-accessible on its own) or
+        //     'storage.public' (public/uploads, served directly by the web server).
+        //     FileStorage::class itself resolves to whichever driver
+        //     config/filesystem.php names as 'default', so a plain
+        //     `FileStorage $fileStorage` type-hint keeps working without a controller
+        //     having to know or care which driver is active.
+        $container->set('storage.private', function () use ($basePath) {
+            return new FileStorage(
+                rtrim($basePath, '/') . '/' . trim((string) Config::get('filesystem.private_path', 'storage/app/uploads'), '/')
+            );
+        });
+        $container->set('storage.public', function () use ($basePath) {
+            return new FileStorage(
+                rtrim($basePath, '/') . '/' . trim((string) Config::get('filesystem.public_path', 'public/uploads'), '/')
+            );
+        });
+        $container->set(FileStorage::class, function ($c) {
+            $driver = Config::get('filesystem.default', 'private') === 'public' ? 'storage.public' : 'storage.private';
+            return $c->get($driver);
         });
 
         // 4.5 Bind Logger

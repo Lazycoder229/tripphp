@@ -100,7 +100,7 @@ final class Console
         $this->register('log:clear',         new LogClearCommand($this->basePath));
 
         // Development
-        $this->register('serve',             new ServeCommand($this->basePath));
+        $this->register('run',             new ServeCommand($this->basePath));
     }
 
     public function run(array $argv): int

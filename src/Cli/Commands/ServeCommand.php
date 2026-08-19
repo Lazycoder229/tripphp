@@ -22,8 +22,8 @@ final class ServeCommand implements CommandInterface
 
     public function execute(array $args): int
     {
-        $host = '127.0.0.1';
-        $port = 8000;
+        $host = 'localhost';
+        $port = 3000;
 
         foreach ($args as $arg) {
             if (str_starts_with($arg, '--host=')) {

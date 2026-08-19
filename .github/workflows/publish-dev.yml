@@ -1,0 +1,61 @@
+name: Publish End-User Dev Branch
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Update dev distribution
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare dev branch
+        run: |
+          mkdir -p /tmp/trip-dev
+
+          cp -R app /tmp/trip-dev/
+          cp -R src /tmp/trip-dev/
+          cp composer.json /tmp/trip-dev/
+          cp composer.lock /tmp/trip-dev/
+          cp trip /tmp/trip-dev/
+
+      - name: Switch to dev branch
+        run: |
+          git fetch origin dev
+          git checkout dev
+
+      - name: Replace dev contents
+        run: |
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name '.git' \
+            -exec rm -rf {} +
+
+          cp -R /tmp/trip-dev/. .
+
+      - name: Commit distribution
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to publish."
+            exit 0
+          fi
+
+          git commit -m "Sync dev with main"
+
+      - name: Push dev branch
+        run: |
+          git push origin dev

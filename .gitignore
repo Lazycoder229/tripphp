@@ -1,2 +1,6 @@
 vendor/
 .env
+storage/app/uploads/*
+!storage/app/uploads/.gitkeep
+public/uploads/*
+!public/uploads/.gitkeep
