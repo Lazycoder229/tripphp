@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Service\UserService;
 use Framework\Http\Request;
 use Framework\Http\Response;
 use Framework\Routing\Attribute\Delete;
@@ -28,41 +27,15 @@ use Framework\Routing\Attribute\Route;
  * DELETE /users/{id}  delete a user
  */
 #[Route('/')]
-class UserController
+class HomeController
 {
-    public function __construct(private readonly UserService $userService)
-    {
-    }
+
 
     #[Get('/')]
     public function index(Request $request): Response
     {
-        return Response::json('Hello World!');
+        return Response::json(['message' => 'Hello World!']);
     }
 
-    #[Get('/{id}')]
-    public function show(Request $request, int $id): Response
-    {
-        return Response::json($this->userService->find($id));
-    }
-
-    #[Post('/store')]
-    public function store(Request $request): Response
-    {
-        return Response::json($this->userService->create($request->all()), 201);
-    }
-
-    #[Put('/{id}')]
-    public function update(Request $request, int $id): Response
-    {
-        return Response::json($this->userService->update($id, $request->all()));
-    }
-
-    #[Delete('/{id}')]
-    public function destroy(Request $request, int $id): Response
-    {
-        $this->userService->delete($id);
-
-        return Response::json(['message' => 'User deleted.']);
-    }
+   
 }

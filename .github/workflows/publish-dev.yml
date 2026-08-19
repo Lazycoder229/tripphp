@@ -37,7 +37,6 @@ jobs:
 
           # ==========================================
           # Application structure
-          # Keep folders, but DO NOT copy app files
           # ==========================================
 
           mkdir -p /tmp/trip-dev/app/Controllers
@@ -47,13 +46,51 @@ jobs:
           mkdir -p /tmp/trip-dev/app/Views/Layouts
           mkdir -p /tmp/trip-dev/app/Views/Errors
 
-          # Keep folders in Git
-          touch /tmp/trip-dev/app/Controllers/.gitkeep
+          # ==========================================
+          # Controllers
+          # Keep ONLY the default HomeController
+          # ==========================================
+
+          cp app/Controllers/HomeController.php \
+            /tmp/trip-dev/app/Controllers/HomeController.php
+
+          # ==========================================
+          # Middleware
+          # Keep folder only
+          # ==========================================
+
           touch /tmp/trip-dev/app/Middleware/.gitkeep
+
+          # ==========================================
+          # Models
+          # Keep folder only
+          # ==========================================
+
           touch /tmp/trip-dev/app/Models/.gitkeep
-          touch /tmp/trip-dev/app/Views/.gitkeep
-          touch /tmp/trip-dev/app/Views/Layouts/.gitkeep
-          touch /tmp/trip-dev/app/Views/Errors/.gitkeep
+
+          # ==========================================
+          # Views
+          # Keep default home.php
+          # ==========================================
+
+          cp app/Views/home.php \
+            /tmp/trip-dev/app/Views/home.php
+
+          # ==========================================
+          # Layouts
+          # Keep ALL layout files
+          # ==========================================
+
+          cp -R app/Views/Layouts/. \
+            /tmp/trip-dev/app/Views/Layouts/
+
+          # ==========================================
+          # Errors
+          # Keep ALL error view files
+          # ==========================================
+
+          cp -R app/Views/Errors/. \
+            /tmp/trip-dev/app/Views/Errors/
 
           # ==========================================
           # Framework source
@@ -81,7 +118,7 @@ jobs:
 
           # ==========================================
           # Composer
-          # These come directly from MAIN
+          # Taken directly from MAIN
           # ==========================================
 
           cp composer.json /tmp/trip-dev/composer.json
@@ -107,7 +144,10 @@ jobs:
               -type f ! -name '.gitkeep' -delete
           fi
 
+          # ==========================================
           # Make sure upload directories exist
+          # ==========================================
+
           mkdir -p /tmp/trip-dev/storage/app/uploads
           mkdir -p /tmp/trip-dev/public/uploads
 
@@ -124,8 +164,18 @@ jobs:
 
           cat /tmp/trip-dev/composer.json
 
+          # ==========================================
+          # Show application structure
+          # ==========================================
+
+          echo "=========================================="
+          echo "Distribution app structure"
+          echo "=========================================="
+
+          find /tmp/trip-dev/app -maxdepth 3 -print
+
       # ==========================================
-      # Validate the DISTRIBUTION, not old dev
+      # Validate the DISTRIBUTION
       # ==========================================
 
       - name: Validate dev distribution
@@ -168,7 +218,7 @@ jobs:
           cp -R /tmp/trip-dev/. .
 
           echo "=========================================="
-          echo "Final dev structure"
+          echo "Final dev application structure"
           echo "=========================================="
 
           find app -maxdepth 3 -print
