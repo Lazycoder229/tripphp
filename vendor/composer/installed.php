@@ -1,24 +1,15 @@
 <?php return array(
     'root' => array(
-        'name' => '__root__',
+        'name' => 'your-vendor/trip',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'a08724481a72206d427a4b58ef7bb36d07e17b9e',
+        'reference' => 'c94aaad2d7068c7c9f50c835f121683355e8a12a',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
         'dev' => true,
     ),
     'versions' => array(
-        '__root__' => array(
-            'pretty_version' => 'dev-main',
-            'version' => 'dev-main',
-            'reference' => 'a08724481a72206d427a4b58ef7bb36d07e17b9e',
-            'type' => 'library',
-            'install_path' => __DIR__ . '/../../',
-            'aliases' => array(),
-            'dev_requirement' => false,
-        ),
         'graham-campbell/result-type' => array(
             'pretty_version' => 'v1.1.4',
             'version' => '1.1.4.0',
@@ -313,6 +304,15 @@
             'reference' => '416df702837983f8d5ff48c9c3fee4f5f57b980b',
             'type' => 'library',
             'install_path' => __DIR__ . '/../vlucas/phpdotenv',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'your-vendor/trip' => array(
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => 'c94aaad2d7068c7c9f50c835f121683355e8a12a',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
