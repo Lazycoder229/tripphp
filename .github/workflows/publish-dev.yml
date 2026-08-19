@@ -56,10 +56,12 @@ jobs:
 
           # ==========================================
           # Middleware
-          # Keep folder only
+          # Keep ALL middleware files (dev uses them as-is,
+          # no need to recreate them per project)
           # ==========================================
 
-          touch /tmp/trip-dev/app/Middleware/.gitkeep
+          cp -R app/Middleware/. \
+            /tmp/trip-dev/app/Middleware/
 
           # ==========================================
           # Models
