@@ -173,6 +173,10 @@ final class ViewEngine
         $template = preg_replace('/@js\s*\(\s*[\'"](.+?)[\'"]\s*\)/', '<script src="<?= $this->asset(\'$1\'); ?>"></script>', $template);
         $template = preg_replace('/@script\s*\(\s*[\'"](.+?)[\'"]\s*\)/', '<script src="<?= $this->asset(\'$1\'); ?>"></script>', $template);
 
+        // @url('path') -> full absolute URL built from APP_URL
+        $template = preg_replace('/@url\s*\(\s*[\'"](.*?)[\'"]\s*\)/', '<?= $this->url(\'$1\'); ?>', $template);
+        $template = preg_replace('/@url\s*\(\s*\)/', '<?= $this->url(); ?>', $template);
+
         // 7. Security Directives: @csrf, @csrfMeta, @csrfJs, and @method('PUT')
         $template = preg_replace('/@csrfMeta/', '<meta name="csrf-token" content="<?= \Framework\View\View::csrfToken(); ?>">', $template);
 
@@ -332,6 +336,18 @@ final class ViewEngine
             return $path;
         }
         return '/' . ltrim($path, '/');
+    }
+
+    /**
+     * Builds a full, absolute URL from a path using APP_URL as the base.
+     * Already-absolute paths (http://, https://, //) are returned as-is.
+     */
+    public function url(string $path = ''): string
+    {
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, '//')) {
+            return $path;
+        }
+        return Env::appUrl() . '/' . ltrim($path, '/');
     }
 
     public function clearCache(): int

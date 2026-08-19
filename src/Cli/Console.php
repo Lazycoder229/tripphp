@@ -143,7 +143,7 @@ final class Console
             'Security & Secrets'      => ['key:generate', 'jwt:secret'],
             'Maintenance Mode'        => ['down', 'up'],
             'Cache & Logging'         => ['cache:clear', 'view:clear', 'log:clear'],
-            'Development Server'      => ['serve'],
+            'Development Server'      => ['run'],
         ];
 
         $maxLen = 0;
