@@ -42,9 +42,9 @@ jobs:
           mkdir -p /tmp/trip-dev/app/Controller
           mkdir -p /tmp/trip-dev/app/Middleware
           mkdir -p /tmp/trip-dev/app/Models
-          mkdir -p /tmp/trip-dev/app/Views
-          mkdir -p /tmp/trip-dev/app/Views/Layouts
-          mkdir -p /tmp/trip-dev/app/Views/Errors
+          mkdir -p /tmp/trip-dev/app/views
+          mkdir -p /tmp/trip-dev/app/views/layouts
+          mkdir -p /tmp/trip-dev/app/views/errors
 
           # ==========================================
           # Controllers
