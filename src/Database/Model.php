@@ -110,6 +110,37 @@ abstract class Model
      */
     protected array $pivotColumns = [];
 
+    /**
+     * @var bool Whether create() should automatically generate and persist a
+     *           UUID for this model. When true, a UUID v7 is injected into
+     *           $uuidColumn on every INSERT — you never pass it manually.
+     *
+     *           Requirements:
+     *           - Your DB table must have a column matching $uuidColumn
+     *             (default: 'uuid') declared as CHAR(36) NOT NULL UNIQUE.
+     *           - 'uuid' (or whatever $uuidColumn is) must be in $guarded so
+     *             mass-assignment can never overwrite it from user input.
+     *
+     * @example
+     * class Product extends Model
+     * {
+     *     protected bool   $uuid       = true;
+     *     protected array  $fillable   = ['name', 'price'];
+     *     protected array  $guarded    = ['id', 'uuid', 'created_at', 'updated_at'];
+     * }
+     *
+     * $id      = $product->create(['name' => 'Bag', 'price' => 199]);
+     * $product = $product->findByUuid('xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx');
+     */
+    protected bool $uuid = false;
+
+    /**
+     * @var string The column name used to store the UUID.
+     *             Change this if your schema uses a different column name
+     *             (e.g. 'public_id', 'external_id').
+     */
+    protected string $uuidColumn = 'uuid';
+
     // -------------------------------------------------------------------------
     // Query-builder state (reset after every terminal call)
     // -------------------------------------------------------------------------
@@ -858,6 +889,37 @@ abstract class Model
     }
 
     /**
+     * Find a single row by its UUID column.
+     *
+     * Only works when $uuid is true on the model. Returns null if no row
+     * matches, or if the supplied string is not a well-formed UUID v7.
+     * Excludes soft-deleted rows unless withTrashed()/onlyTrashed() was
+     * called first.
+     *
+     * @param  string $uuid The UUID value to look up.
+     * @return array|null   The row, or null if not found / invalid UUID.
+     * @throws FrameworkException If $uuid is not enabled on this model.
+     *
+     * @example
+     * $product = $this->product->findByUuid('550e8400-e29b-71d4-a716-446655440000');
+     * // → SELECT * FROM products WHERE uuid = ? LIMIT 1
+     */
+    public function findByUuid(string $uuid): ?array
+    {
+        if (!$this->uuid) {
+            throw new FrameworkException(
+                'findByUuid() requires $uuid = true on ' . static::class . '.'
+            );
+        }
+
+        if (!$this->isValidUuid($uuid)) {
+            return null;
+        }
+
+        return $this->where($this->uuidColumn, $uuid)->first();
+    }
+
+    /**
      * Insert a new row and return its generated primary key.
      *
      * The $data array is filtered through fillable/guarded before insertion —
@@ -878,6 +940,13 @@ abstract class Model
     public function create(array $data): string
     {
         $data = $this->filterFillable($data);
+
+        // Auto-inject UUID before insertion when $uuid is enabled.
+        // The column is bypassed from filterFillable() because it lives in
+        // $guarded, so we add it directly here after filtering.
+        if ($this->uuid) {
+            $data[$this->uuidColumn] = $this->generateUuid();
+        }
 
         if ($this->timestamps) {
             $now                             = $this->now();
@@ -1334,6 +1403,63 @@ abstract class Model
         }
 
         return array_diff_key($data, array_flip($this->guarded));
+    }
+
+    /**
+     * Generate a cryptographically random RFC 9562 UUID v7.
+     *
+     * Layout (128 bits):
+     *   - bits  0–47  : Unix timestamp in milliseconds (big-endian)
+     *   - bits 48–51  : version = 0b0111 (7)
+     *   - bits 52–63  : 12 random bits
+     *   - bits 64–65  : variant = 0b10 (RFC 4122 / 9562)
+     *   - bits 66–127 : 62 random bits
+     *
+     * UUID v7s sort chronologically, making them index-friendly in B-tree
+     * databases — inserts land at the end of the index rather than causing
+     * page splits across random positions as v4 does.
+     *
+     * Format: xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx
+     *
+     * @return string A 36-character UUID string.
+     */
+    private function generateUuid(): string
+    {
+        $bytes = random_bytes(16);
+
+        // Overwrite bytes 0–5 with the current Unix timestamp in milliseconds.
+        $ms       = (int) (microtime(true) * 1000);
+        $bytes[0] = chr(($ms >> 40) & 0xff);
+        $bytes[1] = chr(($ms >> 32) & 0xff);
+        $bytes[2] = chr(($ms >> 24) & 0xff);
+        $bytes[3] = chr(($ms >> 16) & 0xff);
+        $bytes[4] = chr(($ms >>  8) & 0xff);
+        $bytes[5] = chr( $ms        & 0xff);
+
+        // Set version to 7 (0111xxxx in the high nibble of byte 6).
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x70);
+
+        // Set variant to RFC 4122 / 9562 (10xxxxxx in the high bits of byte 8).
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+    }
+
+    /**
+     * Check whether a string looks like a well-formed UUID v7.
+     *
+     * Used in findByUuid() to avoid a pointless DB round-trip for
+     * obviously invalid inputs (e.g. route params that aren't UUIDs).
+     *
+     * @param  string $uuid
+     * @return bool
+     */
+    private function isValidUuid(string $uuid): bool
+    {
+        return (bool) preg_match(
+            '/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i',
+            $uuid
+        );
     }
 
     /**

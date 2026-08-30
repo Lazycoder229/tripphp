@@ -177,8 +177,13 @@ final class ViewEngine
         $template = preg_replace('/@url\s*\(\s*[\'"](.*?)[\'"]\s*\)/', '<?= $this->url(\'$1\'); ?>', $template);
         $template = preg_replace('/@url\s*\(\s*\)/', '<?= $this->url(); ?>', $template);
 
-        // 7. Security Directives: @csrf, @csrfMeta, @csrfJs, and @method('PUT')
+        // 7. Security Directives: @csrf, @csrfMeta, @csrfJs, @cspNonce, and @method('PUT')
         $template = preg_replace('/@csrfMeta/', '<meta name="csrf-token" content="<?= \Framework\View\View::csrfToken(); ?>">', $template);
+
+        // @cspNonce — the current request's CSP nonce, matching the value
+        // SecurityHeadersMiddleware puts in the script-src header. Use it
+        // as: <script nonce="@cspNonce">...</script>
+        $template = preg_replace('/@cspNonce/', '<?= \Framework\Security\Csp::nonce(); ?>', $template);
 
         // @csrfJs — auto-inject the CSRF token into fetch() AND XMLHttpRequest (jQuery $.ajax)
         // Reads the token from <meta name="csrf-token">, sends it as X-CSRF-Token on POST/PUT/PATCH/DELETE.

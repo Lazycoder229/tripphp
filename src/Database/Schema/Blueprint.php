@@ -96,6 +96,45 @@ final class Blueprint
         return $this->addColumn($column, 'longText');
     }
 
+    /**
+     * Add a CHAR(36) NOT NULL UNIQUE column for storing a UUID.
+     *
+     * The column is named 'uuid' by default. Pass a custom name when your
+     * schema uses a different column (e.g. 'public_id', 'external_id').
+     *
+     * The UNIQUE constraint is applied automatically — UUIDs are always
+     * unique identifiers, and the constraint lets the DB enforce that at
+     * the storage level regardless of application logic.
+     *
+     * Compatible with both UUID v4 and UUID v7. Pair with $model->uuid = true
+     * so the Model base class auto-generates and injects the value on create().
+     *
+     * @example
+     * $table->uuid();            // → `uuid` CHAR(36) NOT NULL UNIQUE
+     * $table->uuid('public_id'); // → `public_id` CHAR(36) NOT NULL UNIQUE
+     */
+    public function uuid(string $column = 'uuid'): Column
+    {
+        return $this->addColumn($column, 'char', ['length' => 36])->unique();
+    }
+
+    /**
+     * Add a CHAR(26) NOT NULL UNIQUE column for storing a ULID.
+     *
+     * ULIDs (Universally Unique Lexicographically Sortable Identifiers) are
+     * 26-character Base32 strings that encode a millisecond timestamp and
+     * 80 bits of randomness — sortable by creation time, like UUID v7, but
+     * more compact in string form.
+     *
+     * @example
+     * $table->ulid();           // → `ulid` CHAR(26) NOT NULL UNIQUE
+     * $table->ulid('short_id'); // → `short_id` CHAR(26) NOT NULL UNIQUE
+     */
+    public function ulid(string $column = 'ulid'): Column
+    {
+        return $this->addColumn($column, 'char', ['length' => 26])->unique();
+    }
+
     // -------------------------------------------------------------
     // Numeric Columns
     // -------------------------------------------------------------

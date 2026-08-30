@@ -3,7 +3,7 @@
         'name' => 'trip/core',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '32b614390682491eb0f761659c49bf4a992348ec',
+        'reference' => 'a4b59a84f6d2643a3b8b92dd536482e6e177d155',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -301,7 +301,7 @@
         'trip/core' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '32b614390682491eb0f761659c49bf4a992348ec',
+            'reference' => 'a4b59a84f6d2643a3b8b92dd536482e6e177d155',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
