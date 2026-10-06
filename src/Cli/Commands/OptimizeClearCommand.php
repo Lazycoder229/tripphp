@@ -10,7 +10,7 @@ use Framework\Cli\Output;
 /**
  * OptimizeClearCommand
  * 
- * Clears all cached bootstrap and optimization files (config, routes, views).
+ * Clears cached bootstrap and optimization files (config and routes).
  * 
  * @package Framework\Cli\Commands
  */
@@ -26,7 +26,6 @@ final class OptimizeClearCommand implements CommandInterface
 
         (new ConfigClearCommand($this->basePath))->execute($args);
         (new RouteClearCommand($this->basePath))->execute($args);
-        (new ViewClearCommand($this->basePath))->execute($args);
 
         Output::success("Caches cleared successfully!");
         return 0;
@@ -34,6 +33,6 @@ final class OptimizeClearCommand implements CommandInterface
 
     public function getDescription(): string
     {
-        return 'Remove the route cache, configuration cache, and compiled views';
+        return 'Remove the route and configuration caches';
     }
 }

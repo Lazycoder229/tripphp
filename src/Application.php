@@ -380,16 +380,12 @@ final class Application
         // 4.5 Bind Logger
         $container->set(LoggerInterface::class, $logger);
 
-        // 4.6 Initialize View Engine
-        \Framework\View\View::init($basePath, $container);
-
         // 5. Normalize input channels from global states
         $request = Request::createFromGlobals();
 
         // 5.1 Give Handler the current Request so a thrown exception can be rendered as
         //     JSON (Accept: application/json, or a JSON body) instead of the HTML
-        //     debug/production page — see Handler::wantsJson().
-        Handler::setRequest($request);
+        //     JSON API error response.
 
         // 5.2 Check for Maintenance Mode (503)
         $downFile = rtrim($basePath, '/') . '/storage/framework/down';
@@ -410,21 +406,8 @@ final class Application
             if (!$bypass) {
                 $retry = (int) ($downData['retry'] ?? 60);
                 $message = (string) ($downData['message'] ?? 'The application is under scheduled maintenance.');
-
-                if ($request->wantsJson()) {
-                    $resp = Response::json(['error' => $message], 503)
-                        ->withHeader('Retry-After', (string) $retry);
-                } else {
-                    $content = \Framework\View\View::render('errors.503', [
-                        'status'  => 503,
-                        'message' => $message,
-                        'retry'   => $retry,
-                    ]);
-                    $resp = new Response($content, 503, [
-                        'Retry-After'  => (string) $retry,
-                        'Content-Type' => 'text/html; charset=UTF-8',
-                    ]);
-                }
+                $resp = Response::json(['message' => $message], 503)
+                    ->withHeader('Retry-After', (string) $retry);
                 $resp->send();
                 exit;
             }

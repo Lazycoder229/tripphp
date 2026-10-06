@@ -17,8 +17,6 @@ use Framework\Cli\Commands\MakeControllerCommand;
 use Framework\Cli\Commands\MakeModelCommand;
 use Framework\Cli\Commands\MakeServiceCommand;
 use Framework\Cli\Commands\MakeMiddlewareCommand;
-use Framework\Cli\Commands\MakeViewCommand;
-use Framework\Cli\Commands\ViewClearCommand;
 use Framework\Cli\Commands\MakeMigrationCommand;
 use Framework\Cli\Commands\MigrateCommand;
 use Framework\Cli\Commands\MigrateRollbackCommand;
@@ -77,7 +75,6 @@ final class Console
         $this->register('make:model',        new MakeModelCommand($this->basePath));
         $this->register('make:service',      new MakeServiceCommand($this->basePath));
         $this->register('make:middleware',   new MakeMiddlewareCommand($this->basePath));
-        $this->register('make:view',         new MakeViewCommand($this->basePath));
         $this->register('make:migration',    new MakeMigrationCommand($this->basePath));
         $this->register('make:seeder',       new MakeSeederCommand($this->basePath));
 
@@ -96,7 +93,6 @@ final class Console
         $this->register('down',              new DownCommand($this->basePath));
         $this->register('up',                new UpCommand($this->basePath));
         $this->register('cache:clear',       new CacheClearCommand($this->basePath));
-        $this->register('view:clear',        new ViewClearCommand($this->basePath));
         $this->register('log:clear',         new LogClearCommand($this->basePath));
 
         // Development

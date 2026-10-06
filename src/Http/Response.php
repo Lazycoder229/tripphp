@@ -43,9 +43,9 @@ class Response
             $normalizedHeaders[strtolower($name)] = $value;
         }
 
-        // Default to text/html for plain string/scalar bodies unless the caller already set one.
+        // Plain strings are text; use json() for structured API payloads.
         if (!$isFileDownload && !isset($normalizedHeaders['content-type']) && !is_array($content) && !is_object($content)) {
-            $normalizedHeaders['content-type'] = 'text/html; charset=UTF-8';
+            $normalizedHeaders['content-type'] = 'text/plain; charset=UTF-8';
         }
 
         $this->headers = $normalizedHeaders;
@@ -65,21 +65,6 @@ class Response
             $statusCode,
             ['Content-Type' => 'application/json']
         );
-    }
-
-    /**
-     * Named constructor helper for rendering HTML views using the View Engine.
-     *
-     * @param string $view Dot notation view path (e.g. 'users.index' or 'home')
-     * @param array $data Variables to pass to the template
-     * @param int $statusCode HTTP status code (defaults to 200)
-     * @param array $headers Additional HTTP response headers
-     * @return self
-     */
-    public static function view(string $view, array $data = [], int $statusCode = 200, array $headers = []): self
-    {
-        $html = \Framework\View\View::render($view, $data);
-        return new self($html, $statusCode, array_merge(['Content-Type' => 'text/html; charset=UTF-8'], $headers));
     }
 
     /**

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Framework\Exception;
 
-use Framework\Http\Response;
-use Framework\Http\Request;
 use Framework\Exception\QueryException;
 use Framework\Log\LoggerInterface;
 use Throwable;
@@ -13,20 +11,13 @@ use ErrorException;
 
 /**
  * Centralized Exception and Error Handler
- * Catches all unhandled exceptions and renders a clean debug page.
+ * Converts unhandled exceptions into structured JSON API responses.
  */
 final class Handler
 {
     private static ?self $instance = null;
 
     private ?LoggerInterface $logger = null;
-
-    /**
-     * The current request, set via setRequest() once Application::run() has
-     * built one (step 5). Null for anything that throws before that point
-     * (e.g. a bad .env) — wantsJson() falls back to raw $_SERVER headers then.
-     */
-    private ?Request $request = null;
 
     /**
      * Register global exception and error handlers.
@@ -62,13 +53,6 @@ final class Handler
      * response (Accept: application/json, or a JSON request body) instead
      * of the HTML debug/production page.
      */
-    public static function setRequest(Request $request): void
-    {
-        if (self::$instance !== null) {
-            self::$instance->request = $request;
-        }
-    }
-
     /**
      * Convert PHP warnings/notices into proper ErrorExceptions.
      */
@@ -91,50 +75,19 @@ final class Handler
         if ($e instanceof MisconfiguredEnvException) {
             $this->logMisconfiguration($e);
             http_response_code(503);
-            if ($this->wantsJson()) {
-                $this->renderJson($e, 503);
-            } else {
-                $this->renderProductionPage(503);
-            }
+            $this->renderJson($e, 503);
             exit;
         }
 
         $status = $e instanceof FrameworkException ? $e->getStatusCode() : 500;
         http_response_code($status);
 
-        if ($this->wantsJson()) {
-            // Still logged the same way as the HTML path — see logException()
-            // inside render()'s production branch. JSON responses skip that
-            // branch entirely, so log explicitly here instead.
-            $appMode = strtolower($_ENV['APP_ENV'] ?? 'production');
-            if ($appMode === 'production') {
-                $this->logException($e);
-            }
-            $this->renderJson($e, $status);
-            exit;
+        if (strtolower($_ENV['APP_ENV'] ?? 'production') === 'production') {
+            $this->logException($e);
         }
 
-        $this->render($e, $status);
+        $this->renderJson($e, $status);
         exit;
-    }
-
-    /**
-     * Whether the client expects a JSON error response rather than the HTML
-     * debug/production page — based on the current Request's Accept header
-     * or JSON body, matching Request::wantsJson()'s own rule. Falls back to
-     * reading $_SERVER directly for exceptions thrown before a Request
-     * exists yet (e.g. a bad .env during boot).
-     */
-    private function wantsJson(): bool
-    {
-        if ($this->request !== null) {
-            return $this->request->wantsJson();
-        }
-
-        $accept      = $_SERVER['HTTP_ACCEPT'] ?? '';
-        $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-
-        return str_contains($accept, 'application/json') || str_contains($contentType, 'application/json');
     }
 
     /**
@@ -252,166 +205,5 @@ final class Handler
         error_log($detail);
     }
 
-    /**
-     * Render a clean, readable debug page.
-     */
-    private function render(Throwable $e, int $status): void
-    {
-        //  KUNIN ANG APP MODE MULA SA ATING TINAKDANG COMPOSER DOTENV
-        $appMode = strtolower($_ENV['APP_ENV'] ?? 'production');
 
-        // 1. KUNG PRODUCTION MODE: Mag-render ng ligtas na Generic Page
-        //    (MisconfiguredEnvException never reaches here — handleException() already
-        //    intercepted and logged it above.)
-        //    The full trace still gets written server-side via logException() below —
-        //    "safe for the client" and "invisible to the developer" are not the same
-        //    thing; error_log() never touches the HTTP response the client receives.
-        if ($appMode === 'production') {
-            $this->logException($e);
-            $this->renderProductionPage($status);
-            return;
-        }
-
-        // 2. KUNG LOCAL MODE: Ipakita ang kompleto at magandang layout grid!
-        $class   = htmlspecialchars(get_class($e));
-        $message = htmlspecialchars($e->getMessage());
-        $file    = htmlspecialchars($e->getFile());
-        $line    = $e->getLine();
-        $trace   = $e->getTrace();
-
-        // Hatiin ang trace sa dalawang haligi
-        $half  = (int) ceil(count($trace) / 2);
-        $left  = array_slice($trace, 0, $half);
-        $right = array_slice($trace, $half);
-        ?>
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <title><?= $status ?> — <?= $message ?> (<?= strtoupper($appMode) ?>)</title>
-            <style>
-                *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-                body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; color: #1e293b; padding: 24px; min-height: 100vh; }
-                .top-bar { background: #fff; border-radius: 0 0 10px 10px; border: 0.5px solid #e2e8f0; border-top: 4px solid #e24b4a; padding: 20px 24px; margin-bottom: 16px; }
-                .badge { display: inline-flex; align-items: center; gap: 6px; background: #fee2e2; color: #991b1b; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; letter-spacing: 0.04em; margin-bottom: 10px; }
-                .env-badge { display: inline-flex; background: #e0f2fe; color: #0369a1; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 6px; margin-left: 6px; text-transform: uppercase; }
-                .err-title { font-size: 18px; font-weight: 500; margin-bottom: 6px; line-height: 1.4; word-break: break-word; }
-                .err-location { font-family: 'Courier New', monospace; font-size: 12px; color: #64748b; }
-                .err-location strong { color: #2563eb; }
-                .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-                .panel { background: #fff; border: 0.5px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
-                .panel-header { padding: 10px 16px; border-bottom: 0.5px solid #e2e8f0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: #94a3b8; }
-                .trace-row { display: grid; grid-template-columns: 28px 1fr; gap: 8px; padding: 9px 14px; border-bottom: 0.5px solid #f1f5f9; align-items: start; }
-                .trace-row:last-child { border-bottom: none; }
-                .trace-row.origin { background: #fff1f2; }
-                .trace-num { font-family: 'Courier New', monospace; font-size: 11px; color: #94a3b8; text-align: right; padding-top: 1px; }
-                .trace-row.origin .trace-num { color: #e24b4a; }
-                .fn { font-family: 'Courier New', monospace; font-size: 12px; color: #2563eb; font-weight: 600; word-break: break-all; line-height: 1.4; }
-                .trace-row.origin .fn { color: #e24b4a; }
-                .loc { font-family: 'Courier New', monospace; font-size: 11px; color: #64748b; margin-top: 2px; word-break: break-all; line-height: 1.4; }
-            </style>
-        </head>
-        <body>
-            <div class="top-bar">
-                <div class="badge">⚠ <?= $status ?> &bull; <?= $class ?></div>
-                <div class="env-badge"><?= $appMode ?> mode</div>
-                <div class="err-title"><?= $message ?></div>
-                <div class="err-location"><strong><?= $file ?></strong> &nbsp; line <strong><?= $line ?></strong></div>
-            </div>
-
-            <div class="two-col">
-                <?php foreach ([[$left, 0], [$right, $half]] as [$frames, $offset]): ?>
-                <div class="panel">
-                    <div class="panel-header">Stack trace — frames <?= $offset ?>–<?= $offset + count($frames) - 1 ?></div>
-                    <?php if ($offset === 0): ?>
-                    <div class="trace-row origin">
-                        <span class="trace-num">#0</span>
-                        <div>
-                            <div class="fn"><?= htmlspecialchars(basename($file)) ?>(<?= $line ?>)</div>
-                            <div class="loc"><?= $file ?></div>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                    <?php foreach ($frames as $i => $t):
-                        $fn  = htmlspecialchars(($t['class'] ?? '') . ($t['type'] ?? '') . $t['function'] . '()');
-                        $loc = isset($t['file']) ? htmlspecialchars($t['file']) . ':' . ($t['line'] ?? '') : 'internal';
-                        $num = $offset + $i + ($offset === 0 ? 1 : 0);
-                    ?>
-                    <div class="trace-row">
-                        <span class="trace-num">#<?= $num ?></span>
-                        <div>
-                            <div class="fn"><?= $fn ?></div>
-                            <div class="loc"><?= $loc ?></div>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endforeach; ?>
-            </div>
-        </body>
-        </html>
-        <?php
-    }
-
-    /**
-     * Isang malinis at pormal na Error Page para sa Production environment.
-     * Sumusubok munang mag-render ng custom error view sa app/views/errors/{status}.php.
-     */
-    private function renderProductionPage(int $status): void
-    {
-        // Subukang mag-render ng custom view sa app/views/errors/{status}.php kung mayroon
-        try {
-            if (class_exists(\Framework\View\View::class)) {
-                echo \Framework\View\View::render("errors.{$status}", ['status' => $status]);
-                return;
-            }
-        } catch (\Throwable) {
-            // Kung walang custom view o may issue sa view engine, magpatuloy sa fallback
-        }
-
-        $headline = match ($status) {
-            404 => 'Page Not Found',
-            403 => 'Forbidden',
-            419 => 'Page Expired (CSRF Token Mismatch)',
-            429 => 'Too Many Requests',
-            503 => 'Service Unavailable (Maintenance Mode)',
-            default => 'Something Went Wrong',
-        };
-
-        $subtext = match ($status) {
-            404 => 'Sorry, the page you are looking for does not exist or has been moved.',
-            403 => 'You do not have permission to access this resource.',
-            419 => 'Your session has expired. Please refresh the page and try again.',
-            429 => 'You have sent too many requests in a short period. Please try again later.',
-            503 => 'The server is temporarily unavailable due to maintenance. Please check back soon.',
-            default => 'We are experiencing an internal server error. Our developers have been notified.',
-        };
-        ?>
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title><?= $status ?> — <?= $headline ?></title>
-            <style>
-                body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
-                .card { max-width: 520px; width: 100%; text-align: center; background: #1e293b; padding: 48px 36px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5); border: 1px solid #334155; }
-                .status-code { font-size: 72px; font-weight: 900; line-height: 1; color: #38bdf8; margin: 0 0 16px 0; letter-spacing: -0.05em; }
-                h1 { font-size: 22px; color: #f1f5f9; margin: 0 0 12px 0; font-weight: 700; }
-                p { font-size: 15px; color: #94a3b8; line-height: 1.6; margin: 0 0 28px 0; }
-                .btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; background: #2563eb; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; border-radius: 8px; transition: background 0.2s ease; }
-                .btn:hover { background: #1d4ed8; }
-            </style>
-        </head>
-        <body>
-            <div class="card">
-                <div class="status-code"><?= $status ?></div>
-                <h1><?= $headline ?></h1>
-                <p><?= $subtext ?></p>
-                <a href="/" class="btn">Return to Home</a>
-            </div>
-        </body>
-        </html>
-        <?php
-    }
 }
