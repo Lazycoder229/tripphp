@@ -63,8 +63,9 @@ abstract class Model
 
     /**
      * @var array Columns allowed for mass-assignment (INSERT / UPDATE).
-     *            When non-empty, acts as a whitelist — only listed columns
-     *            are accepted. When empty, $guarded is used as a blacklist.
+     *            Acts as a whitelist — only listed columns are accepted.
+     *            Must be non-empty for create()/update(); an empty list throws
+     *            instead of falling back to a $guarded blacklist.
      */
     protected array $fillable = [];
 
@@ -234,6 +235,10 @@ abstract class Model
         $allowed = $this->getAllowedColumns();
 
         foreach ($columns as $column) {
+            if ($column !== '*') {
+                $this->validateIdentifier($column, 'SELECT');
+            }
+
             if (!empty($allowed) && !in_array($column, $allowed, strict: true)) {
                 throw new FrameworkException(
                     "Column '{$column}' is not allowed in SELECT."
@@ -1308,8 +1313,26 @@ abstract class Model
      */
     private function validateColumn(string $column, string $context): void
     {
-        // Allow table-prefixed columns (e.g. 'bookings.trip_id') used in JOINs
-        $bare    = str_contains($column, '.') ? explode('.', $column)[1] : $column;
+        // Every segment must be a plain identifier — including the table prefix of
+        // 'table.column'. (Previously only the segment after the first dot was checked,
+        // so "1=1 OR x.status" slipped through and landed raw in the SQL.)
+        $segments = explode('.', $column);
+
+        if (count($segments) > 2) {
+            throw new FrameworkException(
+                "Column '{$column}' is not allowed in {$context}."
+            );
+        }
+
+        foreach ($segments as $segment) {
+            if (!preg_match(self::IDENTIFIER_PATTERN, $segment)) {
+                throw new FrameworkException(
+                    "Column '{$column}' is not allowed in {$context}."
+                );
+            }
+        }
+
+        $bare    = end($segments);
         $allowed = $this->getAllowedColumns();
 
         if (!empty($allowed) && !in_array($bare, $allowed, strict: true)) {
@@ -1398,11 +1421,24 @@ abstract class Model
      */
     private function filterFillable(array $data): array
     {
-        if (!empty($this->fillable)) {
-            return array_intersect_key($data, array_flip($this->fillable));
+        // Whitelist-only. A model without $fillable used to fall back to a $guarded
+        // blacklist, which let any request key through into the INSERT/UPDATE column
+        // list (mass assignment + column-name SQL injection).
+        if (empty($this->fillable)) {
+            throw new FrameworkException(
+                static::class . ' must declare a non-empty $fillable list before create()/update().'
+            );
         }
 
-        return array_diff_key($data, array_flip($this->guarded));
+        $filtered = array_intersect_key($data, array_flip($this->fillable));
+
+        // Belt and braces: $fillable is developer-authored, but never let a key that
+        // isn't a plain identifier reach the SQL string.
+        foreach (array_keys($filtered) as $key) {
+            $this->validateIdentifier((string) $key, 'INSERT/UPDATE');
+        }
+
+        return $filtered;
     }
 
     /**

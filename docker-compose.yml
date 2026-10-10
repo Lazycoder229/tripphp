@@ -1,3 +1,13 @@
+# Production-style stack: nginx -> php-fpm -> mysql.
+#
+# Setup:   cp .env.example .env   then set APP_KEY, JWT_SECRET, DB_PASSWORD and DB_ROOT_PASSWORD.
+# Compose refuses to start if DB_PASSWORD / DB_ROOT_PASSWORD are empty — there are no
+# built-in default passwords on purpose.
+#
+# The source code lives INSIDE the image (built by the Dockerfile, with `composer install`
+# already run). It is deliberately NOT bind-mounted: mounting ./ over /var/www/trip would
+# replace the image's vendor/ with whatever is on the host, and give the PHP container
+# write access to the whole source tree.
 services:
   app:
     build:
@@ -6,30 +16,41 @@ services:
     container_name: trip_app
     restart: unless-stopped
     working_dir: /var/www/trip
-    volumes:
-      - ./:/var/www/trip
+    env_file: .env
     environment:
+      # Values here win over env_file, so a host .env copied from .env.example
+      # (DB_USERNAME=root, DB_HOST=127.0.0.1) can't leak into the container.
       APP_ENV: production
       APP_DEBUG: "false"
       DB_HOST: db
       DB_PORT: 3306
-      DB_DATABASE: trip_db
-      DB_USERNAME: trip_user
-      DB_PASSWORD: trip_password
+      DB_DATABASE: ${DB_DATABASE:-trip_db}
+      DB_USERNAME: ${DB_APP_USERNAME:-trip_user}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+    volumes:
+      # Only these paths are writable/persistent.
+      - storage_data:/var/www/trip/storage
+      - uploads_data:/var/www/trip/public/uploads
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - db
     networks:
       - trip_network
 
   web:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     container_name: trip_web
     restart: unless-stopped
     ports:
       - "80:80"
     volumes:
-      - ./:/var/www/trip:ro
+      # nginx only needs the static files; PHP runs in the app container.
+      - ./public:/var/www/trip/public:ro
+      - uploads_data:/var/www/trip/public/uploads:ro
       - ./deployment/nginx/docker.conf:/etc/nginx/conf.d/default.conf:ro
+    security_opt:
+      - no-new-privileges:true
     depends_on:
       - app
     networks:
@@ -40,12 +61,15 @@ services:
     container_name: trip_db
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: trip_db
-      MYSQL_USER: trip_user
-      MYSQL_PASSWORD: trip_password
-      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ${DB_DATABASE:-trip_db}
+      MYSQL_USER: ${DB_APP_USERNAME:-trip_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in .env}
+    # No "ports:" on purpose — MySQL is only reachable from other containers on trip_network.
     volumes:
       - db_data:/var/lib/mysql
+    security_opt:
+      - no-new-privileges:true
     networks:
       - trip_network
 
@@ -55,4 +79,8 @@ networks:
 
 volumes:
   db_data:
+    driver: local
+  storage_data:
+    driver: local
+  uploads_data:
     driver: local

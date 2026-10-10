@@ -3,7 +3,6 @@ FROM php:8.4-fpm-alpine
 # Install system dependencies and build libraries
 RUN apk add --no-cache \
     curl \
-    git \
     libzip-dev \
     libpng-dev \
     oniguruma-dev \
@@ -21,7 +20,7 @@ RUN docker-php-ext-install \
     zip
 
 # Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # Set working directory
 WORKDIR /var/www/trip
@@ -37,7 +36,7 @@ COPY deployment/php/php.ini /usr/local/etc/php/conf.d/custom-php.ini
 COPY deployment/php/opcache.ini /usr/local/etc/php/conf.d/custom-opcache.ini
 
 # Set permissions for storage and cache directories
-RUN chown -R www-data:www-data /var/www/trip/storage /var/www/trip/app/views \
+RUN chown -R www-data:www-data /var/www/trip/storage /var/www/trip/app/views /var/www/trip/public/uploads \
     && chmod -R 775 /var/www/trip/storage
 
 EXPOSE 9000

@@ -1,0 +1,27 @@
+# Keep secrets, VCS history and dev-only files out of the image.
+.git
+.github
+.env
+.env.*
+!.env.example
+vendor
+node_modules
+tests
+phpunit.xml
+.phpunit.cache
+how-it-creates
+*.md
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Runtime data lives in volumes, not in the image (keep the .gitkeep so the folders exist).
+storage/log/*
+!storage/log/.gitkeep
+storage/cache/*
+storage/framework/*
+!storage/framework/.gitkeep
+storage/app/uploads/*
+!storage/app/uploads/.gitkeep
+public/uploads/*
+!public/uploads/.gitkeep

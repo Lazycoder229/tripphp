@@ -33,7 +33,7 @@ final class FileCache implements CacheInterface
             return $default;
         }
 
-        $entry = @unserialize((string) file_get_contents($path));
+        $entry = @unserialize((string) file_get_contents($path), ['allowed_classes' => false]);
 
         if (!is_array($entry) || !isset($entry['expires_at'], $entry['value'])) {
             return $default;

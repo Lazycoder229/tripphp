@@ -27,6 +27,20 @@ use RuntimeException;
  */
 final class FileStorage
 {
+    /**
+     * Extension to store each allowed MIME type under. The extension is derived from the
+     * type detected from the file's bytes, never from the client-supplied filename — a
+     * GIF/PHP polyglot uploaded as "shell.php" is stored as "<random>.gif", not ".php".
+     * A MIME type missing from this map is stored with no extension at all.
+     */
+    private const MIME_EXTENSIONS = [
+        'image/jpeg'      => 'jpg',
+        'image/png'       => 'png',
+        'image/webp'      => 'webp',
+        'image/gif'       => 'gif',
+        'application/pdf' => 'pdf',
+    ];
+
     public function __construct(private readonly string $basePath)
     {
     }
@@ -48,12 +62,13 @@ final class FileStorage
      */
     public function store(array $file, string $subdir = ''): string
     {
-        $this->assertValid($file);
+        $mime = $this->assertValid($file);
 
-        $ext = pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION);
+        $ext = self::MIME_EXTENSIONS[$mime] ?? '';
         $filename = bin2hex(random_bytes(16)) . ($ext !== '' ? ".{$ext}" : '');
 
         $relativeDir = trim($subdir, '/');
+        $this->assertSafeRelativePath($relativeDir);
         $targetDir = rtrim($this->basePath, '/') . ($relativeDir !== '' ? "/{$relativeDir}" : '');
 
         if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
@@ -76,6 +91,7 @@ final class FileStorage
      */
     public function delete(string $relativePath): bool
     {
+        $this->assertSafeRelativePath($relativePath);
         $full = rtrim($this->basePath, '/') . '/' . ltrim($relativePath, '/');
         return is_file($full) ? unlink($full) : false;
     }
@@ -87,10 +103,21 @@ final class FileStorage
      */
     public function path(string $relativePath): string
     {
+        $this->assertSafeRelativePath($relativePath);
+
         return rtrim($this->basePath, '/') . '/' . ltrim($relativePath, '/');
     }
 
-    private function assertValid(array $file): void
+    /** Rejects '..' segments and NUL bytes so a path can never climb out of the base directory. */
+    private function assertSafeRelativePath(string $relativePath): void
+    {
+        if (str_contains($relativePath, "\0") || in_array('..', preg_split('#[\\\\/]+#', $relativePath) ?: [], true)) {
+            throw new RuntimeException('Invalid storage path.');
+        }
+    }
+
+    /** @return string The MIME type detected from the file's bytes. */
+    private function assertValid(array $file): string
     {
         $error = $file['error'] ?? UPLOAD_ERR_NO_FILE;
         if ($error !== UPLOAD_ERR_OK) {
@@ -113,6 +140,8 @@ final class FileStorage
         if (!in_array($mime, $allowed, true)) {
             throw new ValidationException(['file' => ["File type '{$mime}' is not allowed."]]);
         }
+
+        return $mime;
     }
 
     private function uploadErrorMessage(int $code): string

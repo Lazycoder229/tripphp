@@ -4,3 +4,11 @@ storage/app/uploads/*
 !storage/app/uploads/.gitkeep
 public/uploads/*
 !public/uploads/.gitkeep
+
+# Generated / local-only — never commit
+.phpunit.cache/
+storage/cache/*
+!storage/cache/.gitkeep
+storage/log/*
+!storage/log/.gitkeep
+storage/framework/down

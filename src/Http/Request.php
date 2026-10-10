@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Framework\Http;
 
+use Framework\Config\Env;
 use Framework\Exception\PayloadTooLargeException;
 use Framework\Exception\InvalidJsonException;
 
@@ -344,7 +345,58 @@ final class Request
     private function isFromTrustedProxy(): bool
     {
         $remoteAddr = $this->server['REMOTE_ADDR'] ?? '';
-        return $remoteAddr !== '' && in_array($remoteAddr, self::$trustedProxies, true);
+        return $remoteAddr !== '' && self::ipMatchesAny($remoteAddr, self::$trustedProxies);
+    }
+
+    /** True if $ip equals, or falls inside, any entry of $ranges (exact IPs or CIDR such as 10.0.0.0/8). */
+    private static function ipMatchesAny(string $ip, array $ranges): bool
+    {
+        foreach ($ranges as $range) {
+            if (self::ipInRange($ip, (string) $range)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function ipInRange(string $ip, string $range): bool
+    {
+        $ipBin = @inet_pton($ip);
+        if ($ipBin === false) {
+            return false;
+        }
+
+        if (!str_contains($range, '/')) {
+            $rangeBin = @inet_pton($range);
+            return $rangeBin !== false && $rangeBin === $ipBin;
+        }
+
+        [$subnet, $bits] = explode('/', $range, 2);
+        $subnetBin = @inet_pton($subnet);
+
+        if ($subnetBin === false || strlen($subnetBin) !== strlen($ipBin) || !ctype_digit($bits)) {
+            return false;
+        }
+
+        $bits = (int) $bits;
+        if ($bits > strlen($ipBin) * 8) {
+            return false;
+        }
+
+        $fullBytes = intdiv($bits, 8);
+        $remainder = $bits % 8;
+
+        if ($fullBytes > 0 && substr($ipBin, 0, $fullBytes) !== substr($subnetBin, 0, $fullBytes)) {
+            return false;
+        }
+
+        if ($remainder === 0) {
+            return true;
+        }
+
+        $mask = (0xFF << (8 - $remainder)) & 0xFF;
+        return (ord($ipBin[$fullBytes]) & $mask) === (ord($subnetBin[$fullBytes]) & $mask);
     }
 
     /**
@@ -361,13 +413,32 @@ final class Request
         if ($this->isFromTrustedProxy()) {
             $forwarded = $this->header('x-forwarded-for');
             if ($forwarded !== null) {
-                // X-Forwarded-For can be a comma-separated chain; the first entry is the original client.
-                return trim(explode(',', $forwarded)[0]);
+                // Each proxy APPENDS the address it received the request from, so the left
+                // side is whatever the client chose to claim. Walk from the right and take the
+                // first address that is not one of our own proxies.
+                $chain = array_map('trim', explode(',', $forwarded));
+                $fallback = null;
+
+                foreach (array_reverse($chain) as $candidate) {
+                    if (filter_var($candidate, FILTER_VALIDATE_IP) === false) {
+                        continue;
+                    }
+
+                    $fallback = $candidate;
+
+                    if (!self::ipMatchesAny($candidate, self::$trustedProxies)) {
+                        return $candidate;
+                    }
+                }
+
+                if ($fallback !== null) {
+                    return $fallback;
+                }
             }
 
             $realIp = $this->header('x-real-ip');
-            if ($realIp !== null) {
-                return $realIp;
+            if ($realIp !== null && filter_var(trim($realIp), FILTER_VALIDATE_IP) !== false) {
+                return trim($realIp);
             }
         }
 
@@ -399,16 +470,55 @@ final class Request
      */
     public function getHost(): string
     {
+        $host = null;
+
         if ($this->isFromTrustedProxy()) {
             $forwardedHost = $this->header('x-forwarded-host');
             if ($forwardedHost !== null) {
-                return $forwardedHost;
+                $host = trim(explode(',', $forwardedHost)[0]);
             }
         }
 
-        return $this->server['HTTP_HOST']
+        $host ??= $this->server['HTTP_HOST']
             ?? $this->server['SERVER_NAME']
             ?? 'localhost';
+
+        return $this->validatedHost((string) $host);
+    }
+
+    /**
+     * The Host header is attacker-controlled, and anything built from it (password-reset
+     * links, absolute redirects) is open to host-header poisoning. A malformed host, or — in
+     * production — a host that isn't APP_URL's host or listed in TRUSTED_HOSTS
+     * (comma-separated), is replaced by APP_URL's host.
+     */
+    private function validatedHost(string $host): string
+    {
+        $host    = strtolower(trim($host));
+        $appUrl  = Env::appUrl();
+        $appHost = (string) parse_url($appUrl, PHP_URL_HOST);
+        $appPort = parse_url($appUrl, PHP_URL_PORT);
+        $default = $appHost !== '' ? $appHost . ($appPort !== null ? ':' . $appPort : '') : 'localhost';
+
+        $wellFormed = preg_match('/^(?:[a-z0-9](?:[a-z0-9.\-]*[a-z0-9])?|\[[0-9a-f:.]+\])(?::\d{1,5})?$/', $host) === 1;
+        if (!$wellFormed) {
+            return $default;
+        }
+
+        if (Env::isProduction()) {
+            $bare    = preg_replace('/:\d{1,5}$/', '', $host);
+            $allowed = array_filter(array_map(
+                'trim',
+                explode(',', strtolower((string) Env::get('TRUSTED_HOSTS', '')))
+            ));
+            $allowed[] = strtolower($appHost);
+
+            if (!in_array($bare, $allowed, true)) {
+                return $default;
+            }
+        }
+
+        return $host;
     }
 
     /**

@@ -380,7 +380,16 @@ final class Application
         // 4.5 Bind Logger
         $container->set(LoggerInterface::class, $logger);
 
-        // 5. Normalize input channels from global states
+        // 5. Normalize input channels from global states.
+        //    TRUSTED_PROXIES (comma-separated IPs/CIDRs, e.g. "10.0.0.0/8,172.18.0.5") lists the
+        //    reverse proxies / load balancers allowed to set X-Forwarded-*. Leave it empty when
+        //    nothing sits in front of PHP. Without it, behind a proxy every visitor shares the
+        //    proxy's IP and HTTPS is never detected.
+        Request::setTrustedProxies(array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) Env::get('TRUSTED_PROXIES', ''))
+        ))));
+
         $request = Request::createFromGlobals();
 
         // 5.1 Give Handler the current Request so a thrown exception can be rendered as

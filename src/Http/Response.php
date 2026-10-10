@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Framework\Http;
 
+use Framework\Config\Env;
 use Framework\Exception\FileNotReadableException;
 
 /**
@@ -76,7 +77,51 @@ class Response
      */
     public static function redirect(string $url, int $statusCode = 302): self
     {
+        self::assertSafeRedirect($url);
+
         return new self('', $statusCode, ['Location' => $url]);
+    }
+
+    /**
+     * Redirect to a different site (e.g. a payment gateway's hosted page). Kept separate from
+     * redirect() so sending a visitor off-site is always an explicit choice — never pass a
+     * user-supplied URL here.
+     */
+    public static function redirectExternal(string $url, int $statusCode = 302): self
+    {
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        if (preg_match('/[\x00-\x20\x7F\\\\]/', $url) === 1 || !in_array($scheme, ['http', 'https'], true)) {
+            throw new \InvalidArgumentException('Unsafe redirect target.');
+        }
+
+        return new self('', $statusCode, ['Location' => $url]);
+    }
+
+    /**
+     * redirect() only follows relative paths or URLs on this app's own host (APP_URL), which
+     * closes the open-redirect hole when the target comes from user input (?next=...).
+     */
+    private static function assertSafeRedirect(string $url): void
+    {
+        if (preg_match('/[\x00-\x20\x7F\\\\]/', $url) === 1 || str_starts_with($url, '//')) {
+            throw new \InvalidArgumentException('Unsafe redirect target.');
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false) {
+            throw new \InvalidArgumentException('Unsafe redirect target.');
+        }
+
+        if (isset($parts['scheme']) || isset($parts['host'])) {
+            $appHost = strtolower((string) parse_url(Env::appUrl(), PHP_URL_HOST));
+            $host    = strtolower((string) ($parts['host'] ?? ''));
+            $scheme  = strtolower((string) ($parts['scheme'] ?? ''));
+
+            if (!in_array($scheme, ['http', 'https'], true) || $appHost === '' || $host !== $appHost) {
+                throw new \InvalidArgumentException('Unsafe redirect target.');
+            }
+        }
     }
 
     /**

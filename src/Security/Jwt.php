@@ -65,6 +65,15 @@ final class Jwt
             );
         }
 
+        // A weak or copy-pasted placeholder secret makes every token forgeable, so refuse
+        // to boot with one instead of silently accepting any non-empty string.
+        $placeholders = ['your-jwt-secret-here', 'secret', 'changeme', 'change-me', 'jwt-secret'];
+        if (strlen($secret) < 32 || in_array(strtolower($secret), $placeholders, true)) {
+            throw new InvalidTokenException(
+                '500 JWT secret is too weak. Use at least 32 random characters — generate one with: php trip jwt:secret'
+            );
+        }
+
         $this->secret     = $secret;
         $this->defaultTtl = $defaultTtl ?? (int) Config::get('jwt.ttl', 3600);
         $this->issuer     = $issuer ?? Config::get('jwt.issuer', null);
